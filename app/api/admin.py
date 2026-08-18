@@ -1,10 +1,14 @@
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter
-from logging import logger
+from fastapi import APIRouter, Depends
+from loguru import logger
 
 from app.config import settings
+
+
+from app.middleware.auth import User, require_admin
+
 
 router = APIRouter(tags=["Admin"])
 

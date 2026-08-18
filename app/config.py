@@ -6,7 +6,7 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     llm_model_answer: str = "gemini-3.5-flash-lite"
     llm_model_grader: str = "gemini-3.1-flash-lite"
-    embedding_model: str = "text-embedding-3-large" 
+    embedding_model: str = "models/embedding-001" 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "documents"
 
