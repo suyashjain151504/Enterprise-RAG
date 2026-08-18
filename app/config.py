@@ -1,12 +1,19 @@
+from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent.parent / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+        # important: allow environment variables to override everything
+        env_ignore_empty=True,
+    )
     
     gemini_api_key: str = ""
     llm_model_answer: str = "gemini-3.5-flash-lite"
     llm_model_grader: str = "gemini-3.1-flash-lite"
-    embedding_model: str = "models/embedding-001" 
+    embedding_model: str = "BAAI/bge-small-en-v1.5" 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "documents"
 
@@ -33,8 +40,8 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 20
     rate_limit_window_seconds: int = 60
     max_tokens_per_user_daily: int = 100_000
-    auth_login_rate_limit_per_min: int = 5
-    auth_register_rate_limit_per_hour: int = 3
+    auth_login_rate_limit_per_min: int = 3
+    auth_register_rate_limit_per_hour: int = 5
 
     max_input_tokens: int = 3_000
     reserved_context_tokens: int = 1_000

@@ -13,6 +13,11 @@ def _get_db_conn():
 
 @router.post("/auth/register", status_code=status.HTTP_201_CREATED)
 async def register(request: Request, body: dict) -> dict:
+    
+    from app.config import settings
+    print("register limit =", settings.auth_register_rate_limit_per_hour)
+    print("login limit    =", settings.auth_login_rate_limit_per_min)
+    
     client_ip = request.client.host if request.client else "unknown"
     allowed, _, _ = is_allowed_ip(
         client_ip,

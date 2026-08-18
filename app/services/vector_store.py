@@ -8,7 +8,7 @@ from qdrant_client.models import Distance, PointStruct, VectorParams
 from app.config import settings
 from app.models import RetrievedChunk
 
-VECTOR_SIZE = 1536
+VECTOR_SIZE = 384
 
 def get_client() -> QdrantClient:
     return QdrantClient(
@@ -26,7 +26,7 @@ def ensure_collection() -> None:
             vectors_config=VectorParams(size=VECTOR_SIZE, distance=Distance.COSINE),
         )
         
-def upset_chunks(chunks: list[RetrievedChunk], embeddings: list[list[float]]) -> None:
+def upsert_chunks(chunks: list[RetrievedChunk], embeddings: list[list[float]]) -> None:
     ensure_collection()
     client = get_client()
     points = [

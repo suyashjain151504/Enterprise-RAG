@@ -47,23 +47,45 @@ async def _ping_redis() -> bool:
     except Exception as exc:
         logger.debug("Redis health check failed: {}", exc)
         return False
-
+    
 async def _ping_gemini() -> bool:
     try:
-        import google.generativeai as genai
+        from google import genai
 
-        genai.configure(api_key=settings.gemini_api_key)
-        
-        model = genai.GenerativeModel("gemini-1.5-flash")  # or any model you use
-        response = await model.generate_content_async(
-            "ping",
-            generation_config={"max_output_tokens": 1}
+        client = genai.Client(api_key=settings.gemini_api_key)
+
+        response = await client.aio.models.generate_content(
+            model="gemini-3.1-flash-lite",
+            contents="ping",
+            config={"max_output_tokens": 8},
         )
-        
-        return bool(response.text)
-    except Exception as exc:
-        logger.debug("Gemini health check failed: {}", exc)
+
+        if getattr(response, "text", None):
+            return True
+        if getattr(response, "candidates", None):
+            return True
         return False
+
+    except Exception as exc:
+        logger.warning("Gemini health check failed: {}", exc)
+        return False
+
+# async def _ping_gemini() -> bool:
+#     try:
+#         import google.generativeai as genai
+
+#         genai.configure(api_key=settings.gemini_api_key)
+        
+#         model = genai.GenerativeModel("gemini-3.1-flash-lite")  # or any model you use
+#         response = await model.generate_content_async(
+#             "ping",
+#             generation_config={"max_output_tokens": 1}
+#         )
+        
+#         return bool(response.text)
+#     except Exception as exc:
+#         logger.debug("Gemini health check failed: {}", exc)
+#         return False
 
 # async def _ping_tavily() -> bool:
 #     try:

@@ -34,7 +34,7 @@ def create_access_token(username: str, expires_delta_seconds: int | None = None,
         "is_admin": is_admin
     }
     
-    return jwt.encode(payload, settings.jwt_secret_key, algorithm="HS256")
+    return jwt.encode(payload, settings.jwt_secret, algorithm="HS256")
 
 
 def get_current_user(

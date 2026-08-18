@@ -15,7 +15,7 @@ from app.security.system_prompt import build_system_prompt
 from app.services.embedding_service import embed_texts
 # from app.services.reranking import Reranker
 from app.services.llm_service import generate
-from app.services.vector_store import search, hybrid_search, sparse_search
+# from app.services.vector_store import search, hybrid_search, sparse_search
 # from app.services.self_reflective import reflect_on_answer, should_regenerate
 # from app.services.hyde import HyDERetriever
 # from app.services.router_service import classify_intent
@@ -57,5 +57,22 @@ def _top_k_from_flags(flags:dict | int | None) -> int:
         return flags
     return int(flags.get("top_k", 5))
 
-            
-+
+
+
+def run_rag(question : str, flags: dict | int | None = None) -> ChatResponse:
+    """Run the RAG pipeline: retrieve relevant chunks and generate an answer."""
+    top_k = _top_k_from_flags(flags)
+    logger.info("L1 naive RAG | top_k={}", top_k)
+    chunks = _retrieve(question, top_k=top_k)
+    return _generate(question, chunks)
+
+def run_rag_with_trace(question : str, flags: dict | int | None = None) -> tuple[ChatResponse, list[RetrievedChunk]]:
+    top_k = _top_k_from_flags(flags)
+    chunks = _retrieve(question, top_k=top_k)
+    response = _generate(question, chunks)
+    return response, chunks
+
+run_rag_with_trace_no_cache = run_rag_with_trace
+
+
+    
