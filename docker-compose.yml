@@ -37,6 +37,9 @@ services:
       - UPSTASH_REDIS_URL=${UPSTASH_REDIS_URL}
       - UPSTASH_REDIS_TOKEN=${UPSTASH_REDIS_TOKEN}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      # Local llama.cpp on the Windows host. Gemini path does not use this.
+      # 127.0.0.1 inside this container is NOT the host — must be host.docker.internal.
+      - LLM_BASE_URL=http://host.docker.internal:8080/v1
       - TAVILY_API_KEY=${TAVILY_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - LOG_JSON=false
@@ -46,6 +49,8 @@ services:
       - MAX_REFLECTION_RETRIES=${MAX_REFLECTION_RETRIES:-2}
       - AUTH_REGISTER_RATE_LIMIT_PER_HOUR=${AUTH_REGISTER_RATE_LIMIT_PER_HOUR}
       - AUTH_LOGIN_RATE_LIMIT_PER_MIN=${AUTH_LOGIN_RATE_LIMIT_PER_MIN}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       postgres:
         condition: service_healthy

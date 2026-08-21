@@ -706,101 +706,32 @@ def _query_section(base_url: str, lesson_info: dict) -> None:
         placeholder="e.g. How many P1 incidents last month? | What does imagePullPolicy: Always mean?",
     )
 
-    # Feature toggles — hide controls for flags not in this lesson's schema
+    # Feature toggles — only top_k is exposed for the current naive RAG lesson
     with st.expander("⚙️ RAG Feature Toggles", expanded=True):
-        # search_mode only shown if API supports it (L2+)
-        has_search_mode = not available_flags or "search_mode" in available_flags
         has_top_k = not available_flags or "top_k" in available_flags
-        has_hyde = not available_flags or "enable_hyde" in available_flags
-        has_rerank = not available_flags or "enable_rerank" in available_flags
-        has_crag = not available_flags or "enable_crag" in available_flags
-        has_self_rag = not available_flags or "enable_self_reflective" in available_flags
 
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            if has_search_mode:
-                search_mode = st.selectbox(
-                    "Search mode",
-                    ["dense", "sparse", "hybrid"],
-                    index=["dense", "sparse", "hybrid"].index(
-                        st.session_state.get("q_search_mode", "hybrid")
-                    ),
-                    format_func=lambda x: f"{SEARCH_MODE_EMOJI[x]} {x.capitalize()}",
-                    key="q_search_mode",
-                )
-            else:
-                search_mode = "dense"
-                st.caption("_search_mode: N/A (L1)_")
-        with c2:
-            if has_top_k:
-                top_k = st.slider(
-                    "top_k",
-                    min_value=1, max_value=50,
-                    value=st.session_state.get("q_top_k", 5),
-                    key="q_top_k",
-                )
-            else:
-                top_k = 5
-                st.caption("_top_k: N/A_")
-        with c3:
-            if has_hyde:
-                enable_hyde = st.toggle(
-                    "HyDE",
-                    value=st.session_state.get("q_enable_hyde", False),
-                    key="q_enable_hyde",
-                    help="Generate hypothetical answer embeddings to improve retrieval",
-                )
-            else:
-                enable_hyde = False
-                st.caption("_HyDE: N/A (L4+)_")
-        with c4:
-            if has_rerank:
-                enable_rerank = st.toggle(
-                    "Rerank",
-                    value=st.session_state.get("q_enable_rerank", False),
-                    key="q_enable_rerank",
-                    help="Cross-encoder reranking of retrieved chunks",
-                )
-            else:
-                enable_rerank = False
-                st.caption("_Rerank: N/A (L3+)_")
+        if has_top_k:
+            top_k = st.slider(
+                "top_k",
+                min_value=1, max_value=50,
+                value=st.session_state.get("q_top_k", 5),
+                key="q_top_k",
+            )
+        else:
+            top_k = 5
+            st.caption("_top_k: N/A_")
 
-        c5, c6, _ = st.columns(3)
-        with c5:
-            if has_crag:
-                enable_crag = st.toggle(
-                    "CRAG",
-                    value=st.session_state.get("q_enable_crag", False),
-                    key="q_enable_crag",
-                    help="CRAG relevance grading + Tavily web-search fallback",
-                )
-            else:
-                enable_crag = False
-                st.caption("_CRAG: N/A (L5+)_")
-        with c6:
-            if has_self_rag:
-                enable_self_reflective = st.toggle(
-                    "Self-Reflective",
-                    value=st.session_state.get("q_enable_self_reflective", False),
-                    key="q_enable_self_reflective",
-                    help="Self-RAG reflection loop (max 2 retries)",
-                )
-            else:
-                enable_self_reflective = False
-                st.caption("_Self-RAG: N/A (L6+)_")
-
-        # Visual summary of active features
-        active = []
-        if enable_hyde:
-            active.append("HyDE")
-        if enable_rerank:
-            active.append("Rerank")
-        if enable_crag:
-            active.append("CRAG")
-        if enable_self_reflective:
-            active.append("Self-Reflective")
-        active_str = " · ".join(active) if active else "None (basic retrieval)"
-        st.caption(f"Active features: **{active_str}** | Search: **{search_mode}** | top_k: **{top_k}**")
+        # Defaults for other flags so the body-building logic below stays unchanged
+        search_mode = "hybrid"
+        enable_hyde = False
+        enable_rerank = False
+        enable_crag = False
+        enable_self_reflective = False
+        has_search_mode = False
+        has_hyde = False
+        has_rerank = False
+        has_crag = False
+        has_self_rag = False
 
     # Build body: only send fields the API actually supports
     body: dict[str, Any] = {"question": question}

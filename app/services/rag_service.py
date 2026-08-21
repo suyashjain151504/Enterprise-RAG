@@ -21,8 +21,32 @@ from app.services.llm_service import generate
 # from app.services.router_service import classify_intent
 # from app.services.sql_service import SQLService
 from app.services.query_cache_service import query_cache
+from app.services.vector_store import search
+
+import json
+import re
 
 
+def _plain_answer(raw: str) -> tuple[str, list[str] | None, float | None]:
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        obj = json.loads(text)
+    except json.JSONDecodeError:
+        return raw, None, None
+    if not isinstance(obj, dict) or "answer" not in obj:
+        return raw, None, None
+    sources = obj.get("sources")
+    conf = obj.get("confidence")
+    return (
+        str(obj["answer"]),
+        [str(s) for s in sources] if isinstance(sources, list) else None,
+        float(conf) if isinstance(conf, (int, float)) else None,
+    )
+    
+    
 def _retrieve(question: str , top_k: int =5) -> list[RetrievedChunk]:
     """Retrieve relevant chunks from the vector store based on the question."""
     
@@ -34,24 +58,36 @@ def _generate(question: str, chunks: list[RetrievedChunk]) -> ChatResponse:
     spotlighted = build_spotlighted_context(chunks)
     system = build_system_prompt()
     user_msg = f"{spotlighted}\n\n Question: {question}"
-    raw = generate(system, user_msg)["text"]
+    # raw = generate(system, user_msg)["text"]
     chunks_previews = [
         RetrievedChunkPreview(text=c.text, source=c.source, score=c.score) for c in chunks
     ]
     
+    # return ChatResponse(
+    #     answer=raw,
+    #     sources=list({c.source for c in chunks}),
+    #     confidence=0.7,
+    #     metadata=ResponseMetadata(
+    #         route= "rag",
+    #         retrieved_chunks=chunks_previews
+    #     )
+    # )
+    raw = generate(system, user_msg)["text"]
+    answer, json_sources, json_conf = _plain_answer(raw)
+    chunk_sources = list({c.source for c in chunks})
     return ChatResponse(
-        answer=raw,
-        sources=list({c.source for c in chunks}),
-        confidence=0.7,
+        answer=answer,
+        sources=json_sources or chunk_sources,
+        confidence=json_conf if json_conf is not None else 0.7,
         metadata=ResponseMetadata(
-            route= "rag",
-            retrieved_chunks=chunks_previews
-        )
+            route="rag",
+            retrieved_chunks=chunks_previews,
+        ),
     )
     
     
 def _top_k_from_flags(flags:dict | int | None) -> int:
-    if flags in None:
+    if flags is None:
         return 5
     if isinstance(flags, int):
         return flags

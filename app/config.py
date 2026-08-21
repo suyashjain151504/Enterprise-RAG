@@ -10,9 +10,13 @@ class Settings(BaseSettings):
         env_ignore_empty=True,
     )
     
+    # Gemini (cloud answerer/grader). Used when llm_service / ragas_adapter Gemini blocks are uncommented.
     gemini_api_key: str = ""
     llm_model_answer: str = "gemini-3.5-flash-lite"
     llm_model_grader: str = "gemini-3.1-flash-lite"
+    # Local llama.cpp only (OpenAI-compatible). Ignored by the Gemini generate() path.
+    # Host: 127.0.0.1:8080. Docker app: set LLM_BASE_URL=http://host.docker.internal:8080/v1 in compose.
+    llm_base_url: str = "http://127.0.0.1:8080/v1"
     embedding_model: str = "BAAI/bge-small-en-v1.5" 
     qdrant_url: str = "http://localhost:6333"
     qdrant_collection: str = "documents"

@@ -23,7 +23,6 @@ from ragas.embeddings import LangchainEmbeddingsWrapper
 from ragas import evaluate
 from ragas.llms import llm_factory
 from langchain_google_genai import ChatGoogleGenerativeAI
-from ragas.embeddings import LangchainEmbeddingsWrapper
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
 from ragas.llms import LangchainLLMWrapper
 from ragas.metrics import (
@@ -43,43 +42,56 @@ METRICS = [
     answer_relevancy,
 ]
 
+
+from langchain_core.embeddings import Embeddings
+from ragas.run_config import RunConfig
+
+
+class _FastEmbedForRagas(Embeddings):
+    """Expose .model as a str so ragas EmbeddingUsageEvent validation succeeds."""
+
+    def __init__(self, model_name: str = "BAAI/bge-small-en-v1.5"):
+        self.model = model_name
+        self._inner = FastEmbedEmbeddings(model_name=model_name)
+
+    def embed_documents(self, texts):
+        return self._inner.embed_documents(texts)
+
+    def embed_query(self, text):
+        return self._inner.embed_query(text)
+
+    async def aembed_documents(self, texts):
+        return await self._inner.aembed_documents(texts)
+
+    async def aembed_query(self, text):
+        return await self._inner.aembed_query(text)
+
+
+# --- GEMINI grader. Uncomment this and comment out the local `_get_ragas_llm()` below. ---
 # def _get_ragas_llm():
-#     """Create a Ragas-compatible LLM using app settings."""
-#     os.environ.setdefault("GEMINI_API_KEY", settings.gemini_api_key)
-#     return llm_factory(settings.llm_model_grader)
+#     """Create a Ragas-compatible LLM using Gemini."""
+#     llm = ChatGoogleGenerativeAI(
+#         model=settings.llm_model_grader,          # e.g. "gemini-1.5-flash" or "gemini-2.0-flash"
+#         google_api_key=settings.gemini_api_key,
+#         temperature=0.0,
+#     )
+#     return LangchainLLMWrapper(llm)
+
+# --- LOCAL llama.cpp grader (ACTIVE). Same GGUF as the answerer on :8080. ---
+# --- Eval on the host uses 127.0.0.1. If you run eval inside Docker, use host.docker.internal. ---
+from langchain_openai import ChatOpenAI
+from ragas.llms import LangchainLLMWrapper
 
 def _get_ragas_llm():
-    """Create a Ragas-compatible LLM using Gemini."""
-    llm = ChatGoogleGenerativeAI(
-        model=settings.llm_model_grader,          # e.g. "gemini-1.5-flash" or "gemini-2.0-flash"
-        google_api_key=settings.gemini_api_key,
+    llm = ChatOpenAI(
+        model="local",
+        base_url="http://127.0.0.1:8080/v1",
+        api_key="llamacpp",
         temperature=0.0,
+        max_tokens=1024,
+        extra_body={"chat_template_kwargs": {"enable_thinking": False}},
     )
     return LangchainLLMWrapper(llm)
-
-# def _get_ragas_embeddings():
-#     """Create Ragas-compatible embeddings using app settings."""
-#     lc_emb = OpenAIEmbeddings(
-#         model=settings.embedding_model,
-#         api_key=settings.openai_api_key,
-#     )
-#     return LangchainEmbeddingsWrapper(lc_emb)
-
-# def _get_ragas_embeddings():
-#     """Create Ragas-compatible embeddings using Gemini (Jio subscription)."""
-#     lc_emb = GoogleGenerativeAIEmbeddings(
-#         model=settings.embedding_model,          # e.g. "models/embedding-001" or "models/text-embedding-004"
-#         google_api_key=settings.gemini_api_key,
-#     )
-#     return LangchainEmbeddingsWrapper(lc_emb)
-
-def _get_ragas_embeddings():
-    """Very lightweight embeddings using FastEmbed (ideal for Docker)."""
-    lc_emb = FastEmbedEmbeddings(
-        model_name="BAAI/bge-small-en-v1.5"
-    )
-    return LangchainEmbeddingsWrapper(lc_emb)
-
 
 def build_dataset(rows: list[dict]) -> Dataset:
     return Dataset.from_dict(
@@ -91,17 +103,28 @@ def build_dataset(rows: list[dict]) -> Dataset:
         }
     )
     
-def run(rows:list[dict]) -> list[dict]:
+
+def _get_ragas_embeddings():
+    return LangchainEmbeddingsWrapper(_FastEmbedForRagas("BAAI/bge-small-en-v1.5"))
+
+
+def run(rows: list[dict]) -> list[dict]:
     if not rows:
         return []
-    
+
+    answer_relevancy.strictness = 1  # Gemini cannot return n=3 completions
+
     ds = build_dataset(rows)
     result = evaluate(
         ds,
         metrics=METRICS,
         llm=_get_ragas_llm(),
         embeddings=_get_ragas_embeddings(),
-        show_progress=True
+        show_progress=True,
+        run_config=RunConfig(
+            max_workers=1,   # default is 16; free tier is 15 RPM
+            timeout=180,
+            max_retries=3,
+        ),
     )
-    
     return result.to_pandas().to_dict(orient="records")

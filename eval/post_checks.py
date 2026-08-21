@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 
 
 def forbidden_keywords_check(answer: str, forbidden: list[str]) -> dict:
@@ -8,22 +9,47 @@ def forbidden_keywords_check(answer: str, forbidden: list[str]) -> dict:
     hits = [kw for kw in forbidden if kw.lower() in answer_lower]
     return {"passed": not hits, "hits": hits}
 
-    
+
+def _norm(s: str) -> str:
+    return os.path.splitext(os.path.basename(s.strip().lower().replace("\\", "/")))[0]
+
+
+def _match(actual: str, golden: str) -> bool:
+    return (
+        actual == golden
+        or actual.endswith(golden)
+        or golden.endswith(actual)
+        or golden in actual
+    )
+
+
 def source_overlap(actual: list[str], golden: list[str]) -> dict:
-    """Check if the actual sources overlap with the golden sources."""
-    import os
-    
-    def _norm(s: str) -> str:
-        """Normalize a source string for comparison."""
-        return os.path.splitext(os.path.basename(s.strip().lower()))[0]
-    
     actual_set = {_norm(s) for s in actual}
     golden_set = {_norm(s) for s in golden}
-    overlap = actual_set & golden_set
-    
+    matched = sorted(g for g in golden_set if any(_match(a, g) for a in actual_set))
+    missed = sorted(golden_set - set(matched))
     return {
-        "overlap_pct": round(len(overlap) /max(len(golden_set), 1), 3),
-        "matched": sorted(overlap),
-        "missed": sorted(golden_set - actual_set)
+        "overlap_pct": round(len(matched) / max(len(golden_set), 1), 3),
+        "matched": matched,
+        "missed": missed,
     }
+
+    
+# def source_overlap(actual: list[str], golden: list[str]) -> dict:
+#     """Check if the actual sources overlap with the golden sources."""
+#     import os
+    
+#     def _norm(s: str) -> str:
+#         """Normalize a source string for comparison."""
+#         return os.path.splitext(os.path.basename(s.strip().lower()))[0]
+    
+#     actual_set = {_norm(s) for s in actual}
+#     golden_set = {_norm(s) for s in golden}
+#     overlap = actual_set & golden_set
+    
+#     return {
+#         "overlap_pct": round(len(overlap) /max(len(golden_set), 1), 3),
+#         "matched": sorted(overlap),
+#         "missed": sorted(golden_set - actual_set)
+#     }
     
