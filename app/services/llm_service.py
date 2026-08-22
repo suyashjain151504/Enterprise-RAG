@@ -74,75 +74,75 @@ def _paced_generate(factory):
 
 # --- GEMINI answerer (cloud). Uncomment this whole function to use Gemini. ---
 # --- Then comment out the local `generate()` below (Python allows only one). ---
-# def generate(system_prompt: str, user_message: str, model: str | None = None, temperature: float = 0.0) -> dict:
-#     if model is None:
-#         model = settings.llm_model_answer
+def generate(system_prompt: str, user_message: str, model: str | None = None, temperature: float = 0.0) -> dict:
+    if model is None:
+        model = settings.llm_model_answer
 
-#     def _call():
-#         client = genai.GenerativeModel(
-#             model_name=model,
-#             system_instruction=system_prompt,
-#             generation_config=genai.types.GenerationConfig(temperature=temperature),
-#         )
-#         return client.generate_content(user_message)
+    def _call():
+        client = genai.GenerativeModel(
+            model_name=model,
+            system_instruction=system_prompt,
+            generation_config=genai.types.GenerationConfig(temperature=temperature),
+        )
+        return client.generate_content(user_message)
 
-#     response = _paced_generate(_call)
-#     text = response.text or ""
-#     usage_metadata = getattr(response, "usage_metadata", None)
-#     usage = {
-#         "prompt_tokens": getattr(usage_metadata, "prompt_token_count", 0) or 0,
-#         "completion_tokens": getattr(usage_metadata, "candidates_token_count", 0) or 0,
-#         "total_tokens": getattr(usage_metadata, "total_token_count", 0) or 0,
-#     }
-#     return {"text": text, "usage": usage}
+    response = _paced_generate(_call)
+    text = response.text or ""
+    usage_metadata = getattr(response, "usage_metadata", None)
+    usage = {
+        "prompt_tokens": getattr(usage_metadata, "prompt_token_count", 0) or 0,
+        "completion_tokens": getattr(usage_metadata, "candidates_token_count", 0) or 0,
+        "total_tokens": getattr(usage_metadata, "total_token_count", 0) or 0,
+    }
+    return {"text": text, "usage": usage}
 
 
 # --- LOCAL llama.cpp answerer (ACTIVE). llama.cpp OpenAI-compatible server on :8080. ---
 # --- To go back to Gemini: comment out `_llm_client` + this `generate()`, uncomment Gemini `generate()` above. ---
 
-from openai import OpenAI
-from openai import APIConnectionError
-from app.config import settings
+# from openai import OpenAI
+# from openai import APIConnectionError
+# from app.config import settings
 
 
-def _llm_client() -> OpenAI:
-    return OpenAI(
-        base_url=settings.llm_base_url,
-        api_key="llamacpp",  # ignored by llama.cpp
-    )
+# def _llm_client() -> OpenAI:
+#     return OpenAI(
+#         base_url=settings.llm_base_url,
+#         api_key="llamacpp",  # ignored by llama.cpp
+#     )
 
 
-def generate(
-    system_prompt: str,
-    user_message: str,
-    model: str | None = None,
-    temperature: float = 0.0,
-) -> dict:
-    try:
-        response = _llm_client().chat.completions.create(
-            model="local",  # llama.cpp uses whatever GGUF is already loaded
-            temperature=temperature,
-            max_tokens=1024,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_message},
-            ],
-            extra_body={"chat_template_kwargs": {"enable_thinking": False}},
-        )
-    except APIConnectionError as e:
-        raise ConnectionError(
-            f"Cannot reach local LLM at {settings.llm_base_url}. "
-            "From Docker this must be http://host.docker.internal:8080/v1 "
-            "(127.0.0.1 inside the container is not your Windows llama.cpp)."
-        ) from e
-    choice = response.choices[0].message
-    text = choice.content or ""
-    usage = {
-        "prompt_tokens": getattr(response.usage, "prompt_tokens", 0) or 0,
-        "completion_tokens": getattr(response.usage, "completion_tokens", 0) or 0,
-        "total_tokens": getattr(response.usage, "total_tokens", 0) or 0,
-    }
-    return {"text": text, "usage": usage}
+# def generate(
+#     system_prompt: str,
+#     user_message: str,
+#     model: str | None = None,
+#     temperature: float = 0.0,
+# ) -> dict:
+#     try:
+#         response = _llm_client().chat.completions.create(
+#             model="local",  # llama.cpp uses whatever GGUF is already loaded
+#             temperature=temperature,
+#             max_tokens=1024,
+#             messages=[
+#                 {"role": "system", "content": system_prompt},
+#                 {"role": "user", "content": user_message},
+#             ],
+#             extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+#         )
+#     except APIConnectionError as e:
+#         raise ConnectionError(
+#             f"Cannot reach local LLM at {settings.llm_base_url}. "
+#             "From Docker this must be http://host.docker.internal:8080/v1 "
+#             "(127.0.0.1 inside the container is not your Windows llama.cpp)."
+#         ) from e
+#     choice = response.choices[0].message
+#     text = choice.content or ""
+#     usage = {
+#         "prompt_tokens": getattr(response.usage, "prompt_tokens", 0) or 0,
+#         "completion_tokens": getattr(response.usage, "completion_tokens", 0) or 0,
+#         "total_tokens": getattr(response.usage, "total_tokens", 0) or 0,
+#     }
+#     return {"text": text, "usage": usage}
 
 
 

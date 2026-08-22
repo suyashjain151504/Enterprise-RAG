@@ -88,7 +88,7 @@ def _get_ragas_llm():
         base_url="http://127.0.0.1:8080/v1",
         api_key="llamacpp",
         temperature=0.0,
-        max_tokens=1024,
+        max_tokens=4096,
         extra_body={"chat_template_kwargs": {"enable_thinking": False}},
     )
     return LangchainLLMWrapper(llm)
